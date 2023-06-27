@@ -1,4 +1,3 @@
-
 package com.crio.warmup.stock;
 
 
@@ -325,6 +324,7 @@ public class PortfolioManagerApplication {
   public static String getToken() {
     return "143407f152b6256b873b79d4901d4ed68d886073";
   }
+  
 
 
 
