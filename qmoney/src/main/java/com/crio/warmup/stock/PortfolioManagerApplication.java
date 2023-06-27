@@ -352,7 +352,7 @@ public class PortfolioManagerApplication {
       return pm.calculateAnnualizedReturn(readTradesFromJson(file), endDate);
   }
 
-
+// read file as String
   private static String readFileAsString(String file) {
     return null;
   }
