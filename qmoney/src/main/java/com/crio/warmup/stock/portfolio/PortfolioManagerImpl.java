@@ -8,6 +8,7 @@ import com.crio.warmup.stock.dto.AnnualizedReturn;
 import com.crio.warmup.stock.dto.Candle;
 import com.crio.warmup.stock.dto.PortfolioTrade;
 import com.crio.warmup.stock.dto.TiingoCandle;
+import com.crio.warmup.stock.exception.StockQuoteServiceException;
 import com.crio.warmup.stock.quotes.StockQuotesService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -88,33 +89,35 @@ public class PortfolioManagerImpl implements PortfolioManager {
 
   @Override
   public List<AnnualizedReturn> calculateAnnualizedReturn(List<PortfolioTrade> portfolioTrades,
-      LocalDate endDate) throws JsonProcessingException {
+      LocalDate endDate) throws StockQuoteServiceException {
     // TODO Auto-generated method stub
       // String token=PortfolioManagerApplication.getToken();
       List<AnnualizedReturn> annualizedReturns=new ArrayList<>();
     // List<TotalReturnsDto> totalReturnsDtos = new ArrayList<>();
-    for(PortfolioTrade pt:portfolioTrades){
-      
-      List<Candle>list=stockQuotesService.getStockQuote(pt.getSymbol(), pt.getPurchaseDate(), endDate);
-      if(list!=null){
-        pt.setPurchaseDate(list.get(0).getDate());
-        AnnualizedReturn ar=PortfolioManagerApplication.calculateAnnualizedReturns(list.get(list.size()-1).getDate(), pt,list.get(0).getOpen(), list.get(list.size()-1).getClose());
-        annualizedReturns.add(ar);
-      }   
-    }
-    Collections.sort(annualizedReturns,getComparator());
-    // Collections.sort(annualizedReturns,new Comparator<AnnualizedReturn>() {
-    //   @Override
-    //         public int compare(AnnualizedReturn t1, AnnualizedReturn t2) {
-    //           if(t1.getAnnualizedReturn()>t2.getAnnualizedReturn()){
-    //             return -1;
-    //           }else if(t1.getAnnualizedReturn()==t2.getAnnualizedReturn()) return 0;
-    //           return +1;
-    //         }
-    // });
+    try {
+      for(PortfolioTrade pt:portfolioTrades){
+        
+        List<Candle> list;
+        
+          list = stockQuotesService.getStockQuote(pt.getSymbol(), pt.getPurchaseDate(), endDate);
+          if(list!=null){
+            pt.setPurchaseDate(list.get(0).getDate());
+            AnnualizedReturn ar=PortfolioManagerApplication.calculateAnnualizedReturns(list.get(list.size()-1).getDate(), pt,list.get(0).getOpen(), list.get(list.size()-1).getClose());
+            annualizedReturns.add(ar);
+          } 
+          
+      }
+      Collections.sort(annualizedReturns,getComparator());
+      return annualizedReturns;
+      } catch (Exception e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
+        throw new StockQuoteServiceException("message");
+      }
+        
     
+   
 
-
-     return annualizedReturns;
+     
   }
 }

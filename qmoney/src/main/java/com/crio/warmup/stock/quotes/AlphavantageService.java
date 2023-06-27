@@ -6,7 +6,12 @@ import static java.time.temporal.ChronoUnit.SECONDS;
 import com.crio.warmup.stock.dto.AlphavantageCandle;
 import com.crio.warmup.stock.dto.AlphavantageDailyResponse;
 import com.crio.warmup.stock.dto.Candle;
+
+import com.crio.warmup.stock.dto.AlphavantageDailyResponse;
+import com.crio.warmup.stock.dto.Candle;
+import com.crio.warmup.stock.exception.StockQuoteServiceException;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.time.LocalDate;
@@ -18,6 +23,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.Comparator;
+import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.web.client.RestTemplate;
 
@@ -30,46 +37,33 @@ public class AlphavantageService implements StockQuotesService {
   }
   @Override
   public List<Candle> getStockQuote(String symbol, LocalDate from, LocalDate to)
-      throws JsonProcessingException {
+      throws StockQuoteServiceException {
         
     // TODO Auto-generated method stub
-    String url="https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol="+symbol+"&apikey="+getToken();
-    String str=restTemplate.getForObject(url, String.class);
-    System.out.println(str);
-    ObjectMapper om=new ObjectMapper();
-    om.registerModule(new JavaTimeModule());
-    
-    AlphavantageDailyResponse alphaResponses=om.readValue(str,AlphavantageDailyResponse.class);
-    Map<LocalDate, AlphavantageCandle> allCandles=alphaResponses.getCandles();
-    List<Candle> candles=new ArrayList<>();
-    for(LocalDate i: allCandles.keySet()){
-      if(i.isBefore(to.plusDays(1)) && i.isAfter(from.minusDays(1))){
-        AlphavantageCandle acandle=allCandles.get(i);
-        acandle.setDate(i);
-        candles.add(acandle);
+    try {
+      String url="https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol="+symbol+"&apikey="+getToken();
+      String str=restTemplate.getForObject(url, String.class);
+      ObjectMapper om=new ObjectMapper();
+      om.registerModule(new JavaTimeModule());
+      
+      AlphavantageDailyResponse alphaResponses=om.readValue(str,AlphavantageDailyResponse.class);
+      Map<LocalDate, AlphavantageCandle> allCandles=alphaResponses.getCandles();
+      List<Candle> candles=new ArrayList<>();
+      for(LocalDate i: allCandles.keySet()){
+        if(i.isBefore(to.plusDays(1)) && i.isAfter(from.minusDays(1))){
+          AlphavantageCandle acandle=allCandles.get(i);
+          acandle.setDate(i);
+          candles.add(acandle);
+        }
       }
+      candles.sort(getComparator());
+      return candles; 
+    }catch (Exception e) {
+      //TODO: handle exception
+      throw new StockQuoteServiceException("Invalid url");
     }
 
-    candles.sort(getComparator());
-    // allCandles.keySet().forEach((d)->{
-    //   // System.out.println("in forEach");
-    //   // if(d.compareTo(from)<0){
-    //   //   allCandles.remove(d);
-    //   // }else if(d.compareTo(to)>0){
-    //   //   allCandles.remove(d);
-    //   // }
-    //   if(allCandles.get(d).before(fr))
-    // });
-
-    // System.out.println("after sort "+allCandles.size());
-    // Map<LocalDate, AlphavantageCandle> tm=new TreeMap<>(allCandles);
     
-    // for(Map.Entry<LocalDate, AlphavantageCandle> e:tm.entrySet()){
-    //   candles.add(e.getValue());
-    // }
-    // // return Arrays.asList(arr);
-    // System.out.println(candles.toArray());
-    return candles;
   }
   private Comparator<Candle> getComparator() {
     return Comparator.comparing(Candle::getDate);
