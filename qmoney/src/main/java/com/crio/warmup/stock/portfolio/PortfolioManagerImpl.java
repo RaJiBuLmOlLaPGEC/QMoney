@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -120,4 +121,113 @@ public class PortfolioManagerImpl implements PortfolioManager {
 
      
   }
+
+  // @Override
+  // public List<AnnualizedReturn> calculateAnnualizedReturnParallel(
+  //     List<PortfolioTrade> portfolioTrades, LocalDate endDate, int numThreads)
+  //     throws InterruptedException, StockQuoteServiceException {
+  //   // TODO Auto-generated method stub
+    
+  //   //Requared Result list
+  //   List<AnnualizedReturn> list=new ArrayList<>();
+
+  //   //Creating the jobs to be Execute
+  //   List<TaskCallable> jobs=new ArrayList<>();
+  //   for (int i = 0; i< portfolioTrades.size(); i++) {
+  //       TaskCallable task = new TaskCallable(endDate,portfolioTrades.get(i));
+  //       jobs.add(task);
+  //   }
+  //   //Creating n Number Of Thread pool
+  //   ExecutorService service=Executors.newFixedThreadPool(numThreads);
+
+  //   //DOing the task by thread
+  //   for(TaskCallable job:jobs){
+  //     Future<AnnualizedReturn> f= service.submit(job);
+  //     try {
+  //       list.add(f.get());
+  //     } catch (ExecutionException e) {
+  //       // TODO Auto-generated catch block
+  //       e.printStackTrace();
+  //       throw new StockQuoteServiceException("message");
+  //     }
+  //   }
+  //   service.shutdown();
+  //   Collections.sort(list,getComparator());
+  //   return list;
+  // }
+  // class TaskCallable implements Callable{
+  //   PortfolioTrade trades;
+  //   LocalDate endDate;
+  
+  
+  //   public TaskCallable(LocalDate endDate, PortfolioTrade trades) {
+  //       this.endDate = endDate;
+  //       this.trades = trades;
+  //   }
+  
+  
+  //   @Override
+  //   public AnnualizedReturn call() throws Exception {
+  //     // TODO Auto-generated method stub
+  //     List<Candle> candles = stockQuotesService.getStockQuote(trades.getSymbol(), trades.getPurchaseDate(), endDate);
+  
+  //     Candle tiingoCandle = candles.get(0);
+  //     Candle tiingoCandlelast = candles.get(candles.size()-1);
+  
+  //     AnnualizedReturn annualizedReturn = PortfolioManagerApplication.calculateAnnualizedReturns(tiingoCandlelast.getDate(), trades, tiingoCandle.getOpen(), tiingoCandlelast.getClose());
+  //       return annualizedReturn;
+  //   }
+  // }
+    @Override
+    public List<AnnualizedReturn> calculateAnnualizedReturnParallel(
+        List<PortfolioTrade> portfolioTrades, LocalDate endDate, int numThreads)
+        throws InterruptedException, StockQuoteServiceException {
+      
+          ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+
+            List<Future<AnnualizedReturn>> futures = new ArrayList<>();
+
+            
+            for (int i = 0; i < numThreads && i< portfolioTrades.size(); i++) {
+                Callable<AnnualizedReturn> task = new TaskCallable(endDate,portfolioTrades.get(i));
+                Future<AnnualizedReturn> future = executor.submit(task);
+                futures.add(future);
+            }
+
+            // Collect the results from the futures
+            List<AnnualizedReturn> results = new ArrayList<>();
+            for (Future<AnnualizedReturn> future : futures) {
+                try {
+                    AnnualizedReturn annualizedReturn = future.get();
+                    results.add(annualizedReturn);
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new StockQuoteServiceException("Rate limit excided");
+                }
+            }
+            executor.shutdown();
+            Collections.sort(results,getComparator());
+            return results;
+        }
+
+    class TaskCallable implements Callable<AnnualizedReturn> {
+        PortfolioTrade trades;
+        LocalDate endDate;
+
+
+        public TaskCallable(LocalDate endDate, PortfolioTrade trades) {
+            this.endDate = endDate;
+            this.trades = trades;
+        }
+
+        @Override
+        public AnnualizedReturn call() throws Exception {
+          List<Candle> candles = stockQuotesService.getStockQuote(trades.getSymbol(), trades.getPurchaseDate(), endDate);
+          // if(candles != null){
+            Candle tiingoCandle = candles.get(0);
+            Candle tiingoCandlelast = candles.get(candles.size()-1);
+            AnnualizedReturn annualizedReturn = PortfolioManagerApplication.calculateAnnualizedReturns(tiingoCandlelast.getDate(), trades, tiingoCandle.getOpen(), tiingoCandlelast.getClose());
+            return annualizedReturn;
+        }
+    }
 }
+
