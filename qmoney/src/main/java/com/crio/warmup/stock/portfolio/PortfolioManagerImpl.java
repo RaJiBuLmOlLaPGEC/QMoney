@@ -186,8 +186,7 @@ public class PortfolioManagerImpl implements PortfolioManager {
           ExecutorService executor = Executors.newFixedThreadPool(numThreads);
 
             List<Future<AnnualizedReturn>> futures = new ArrayList<>();
-
-            
+            //
             for (int i = 0; i < numThreads && i< portfolioTrades.size(); i++) {
                 Callable<AnnualizedReturn> task = new TaskCallable(endDate,portfolioTrades.get(i));
                 Future<AnnualizedReturn> future = executor.submit(task);
